@@ -5,8 +5,6 @@
 - Run a database
 - Host apps and web servers
 
-## Tools Used
-
 ## Commands
 - sudo apt install ca-certificates curl gnupg lsb-release -y (Installing Dependencies for Docker).
 - sudo mkdir -p /etc/apt/keyrings
