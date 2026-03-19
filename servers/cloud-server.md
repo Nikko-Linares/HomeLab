@@ -20,4 +20,6 @@
 - It was suppose to say image not images.
 - Ran the ip address in a browser and set up an account. Next is to move the Nextcloud behind a Reverse Proxy.
 - Set up the location for the proxy pass.
-- Ran into an error 
+- Ran into an error that the service could not listen to /etc/nginx/sites-enabled/nextcloud:2.
+- I ended up writing listen: 80; instead of listen 80;
+- 
