@@ -22,4 +22,4 @@
 - Set up the location for the proxy pass.
 - Ran into an error that the service could not listen to /etc/nginx/sites-enabled/nextcloud:2.
 - I ended up writing listen: 80; instead of listen 80;
-- 
+- I ended up trying to set up my ip address, but kept running into issues. Went to the VM settings and changed it from NAT to Bridged Adapter.
