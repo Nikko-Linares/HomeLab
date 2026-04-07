@@ -54,6 +54,9 @@ PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 - sudo ufw allow 51820/udp
 - sudo systemctl start wg-quick@wg0
 // Issue starting wg-quick@wg0
+- sudo systemctl status wg-quick@wg0
+- sudo journalctl -xeu wg-quick@wg0
+// Found the issue and VPN is running.
 
 ## Notes
 - Saying that there was no file or directory when doing the tee function for public key, or cat function for the private key.
@@ -62,4 +65,6 @@ PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 - Nothing appeared when checking for the public key. However, when checking the private key it was also empty. It put out an example code when checking "wg genkey | sudo tee /etc/wireguard/server_private.key"
 - Getting frustuarated so taking an approach to check other things to see what is going wrong.
 - Found the issue and I mispelled wireguard, going back to fix the issue.
+- The wg0.sevice exied with error codes so I need to go back and check the system control.
+- I had found the issue, I had stored the private key into a folder and instead of putting the private VPN key, I put the location of the folder.
 - Still testings multi-device connections
