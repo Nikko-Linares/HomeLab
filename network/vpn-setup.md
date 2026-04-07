@@ -15,7 +15,7 @@
 - wg genkey | sudo tee /etc/wireguard/server_private.key
 - sudo cat /etc/wireguard/server_private.key | wg pubkey | sudo tee /etc/wireguard/server_public.key
 - sudo chmod 600 /etc/wireguard/server_private.key
-// Checking for verification on Wireguard
+Checking for verification on Wireguard
 - which wg
 - sudo mkdir -p /etc/wireguard
 - sudo chmod 700 /etc/wireguard
@@ -23,10 +23,10 @@
 - cat server_private.key
 - cat server_private.key | wg pubkey > server_public.key
 - cat server_public.key
-// Need to create a public key
+Need to create a public key
 - sudo sh -c 'cat /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key'
 - sudo cat /etc/wireguard/server_public.key
-// Nothing appeared, possibly experiencing Linux redirection + sudo issue
+Nothing appeared, possibly experiencing Linux redirection + sudo issue
 - sudo rm -f /etc/wireguard/server_private.key
 - sudo rm -f /etc/wireguard/server_public.key
 - wg genkey
@@ -34,9 +34,9 @@
 - sudo chmod 600 /etc/wireguard/server_private.key
 - sudo sh -c "wg pubkey < /etc/wireguard/server_private.key > /etc/wireguard/server_public.key"
 - sudo cat /etc/wireguard/server_public.key
-// No public key, taking a pause and checking other things
+No public key, taking a pause and checking other things
 - sudo ls -ld /etc/wireguard
-// Mispelled wireguard as wiregurad
+Mispelled wireguard as wiregurad
 - sudo nano /etc/wireguard/wg0.conf
 
 Interface
@@ -53,10 +53,10 @@ PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 - sudo sysctl -w net.ipv4.ip_forward=1
 - sudo ufw allow 51820/udp
 - sudo systemctl start wg-quick@wg0
-// Issue starting wg-quick@wg0
+Issue starting wg-quick@wg0
 - sudo systemctl status wg-quick@wg0
 - sudo journalctl -xeu wg-quick@wg0
-// Found the issue and VPN is running.
+Found the issue and VPN is running.
 
 ## Notes
 - Saying that there was no file or directory when doing the tee function for public key, or cat function for the private key.
