@@ -28,3 +28,5 @@
 - Turns out that it did not work and found out that it did need to be on port 53 and my password was not working. Decided to tackle the port problem first.
 - Was able to get pihole on port 53, but password was being weird. I had to force it to work on terminal.
 - After that, I was able to log into my pihole account.
+- Pi-hole is not working correctly.
+- Gave up for a while, but went into my pihole settigns and allowed it to permit all origins and now it is working properly. 
