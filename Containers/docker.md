@@ -1,22 +1,102 @@
-## Docker Setup
+# Docker
 
-## Goals
-- Learn Docker
-- Run a database
-- Host apps and web servers
+## Overview
+Docker is used to containerize all core home lab services, ensuring isolated, reproducible, and easily manageable deployments on an Ubuntu Server VM.
 
-## Commands
-- sudo apt install ca-certificates curl gnupg lsb-release -y (Installing Dependencies for Docker).
-- sudo mkdir -p /etc/apt/keyrings
-- curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo --dearmor -o /etc/apt/keyrings/docker.gpg (Add official GPG key).
-- echo \ "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \ $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null (Add Docker repository).
-- sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y (Install Docker).
-- sudo docker run hello-world (Test Docker).
-- sudo rm /etc/apt/sources.list.d/docker.list (removing file)
-- sudo nano /etc/apt/sources.list.ddocker.list
+---
+
+## Installation
+
+```bash
+sudo apt update
+sudo apt install docker.io -y
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
+---
+
+## Running Containers
+
+### PiHole (Ad Blocker)
+```bash
+sudo docker run -d \
+  --name pihole \
+  --restart always \
+  -p 53:53/tcp \
+  -p 53:53/udp \
+  -p 8082:80/tcp \
+  -e TZ="America/Los_Angeles" \
+  -e WEBPASSWORD="yourpassword" \
+  -v pihole_data:/etc/pihole \
+  -v dnsmasq_data:/etc/dnsmasq.d \
+  pihole/pihole:latest
+```
+
+### Nextcloud (Cloud Storage)
+```bash
+sudo docker run -d \
+  --name cloud-nextcloud-1 \
+  --restart always \
+  -p 8080:80 \
+  -v nextcloud_data:/var/www/html \
+  nextcloud:latest
+```
+
+### Vaultwarden (Password Manager)
+```bash
+sudo docker run -d \
+  --name vaultwarden \
+  --restart always \
+  -p <VM_IP>:8081:80 \
+  -e SIGNUPS_ALLOWED=false \
+  -v vaultwarden_data:/data \
+  vaultwarden/server:latest
+```
+
+---
+
+## Useful Commands
+
+| Command | Description |
+|---|---|
+| `sudo docker ps` | List running containers |
+| `sudo docker ps -a` | List all containers including stopped |
+| `sudo docker start <name>` | Start a container |
+| `sudo docker stop <name>` | Stop a container |
+| `sudo docker restart <name>` | Restart a container |
+| `sudo docker rm <name>` | Remove a container |
+| `sudo docker logs <name>` | View container logs |
+| `sudo docker exec -it <name> bash` | Enter container shell |
+| `sudo docker inspect <name>` | View container details |
+
+---
+
+## Auto-Restart on Boot
+All containers are set to restart automatically:
+```bash
+sudo docker update --restart always <container_name>
+```
+
+Verify restart policy:
+```bash
+sudo docker inspect <name> | grep -A 3 RestartPolicy
+```
+
+---
+
+## Port Reference
+
+| Service | Host Port | Container Port |
+|---|---|---|
+| PiHole Web UI | 8082 | 80 |
+| PiHole DNS | 53 | 53 |
+| Nextcloud | 8080 | 80 |
+| Vaultwarden | 8081 | 80 |
+
+---
 
 ## Notes
-- Linux did not have the intsallation so I had to resort to checking Ubuntu version, check if the repo existed and found that the website did not have a release file.
-- The offical Docker repo did not fully support noble yet. I had to remove the file and switch to a different one.
-- Found a new repo called Jammy and tried setting it up. I ran into an issue saying "Invalid value set for option Signed-By regarding source https://download.docker.com/linux/ubuntu jammy (not a fingerprint)"
-- I found why I got that error. I used docker.gng when I should have used docker.gpg.
+- Vaultwarden requires the VM's real IP in the port binding (`-p <VM_IP>:8081:80`) rather than localhost due to how it handles network binding
+- Docker's iptables rules can interfere with WireGuard — ensure forwarding rules are explicitly set
+- Enable Docker on boot: `sudo systemctl enable docker`
