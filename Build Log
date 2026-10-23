@@ -1,0 +1,157 @@
+# Homelab Build Log
+
+A running log of my homelab build: Proxmox VE on an HP EliteDesk 800 G3 mini PC, with Tailscale for remote access.
+
+## Goals
+
+- Host websites
+- Run my own VPN
+- Set up a honeypot
+- Run a network-wide ad-blocker
+- Host a personal cloud server
+- Add a larger storage unit later
+
+## Hardware
+
+| Item | Role |
+|---|---|
+| HP EliteDesk 800 G3 mini PC | Proxmox host (wiped, fresh install) |
+| NETGEAR GS308 (8-port unmanaged switch) | Connects the lab devices |
+| TP-Link router (second router) | Planned to sit in front of the lab for network isolation |
+| Storage unit | Planned, not yet installed |
+
+## Planned architecture
+
+```
+Internet -> Main router (home network)
+                +-- Second TP-Link router (lab network, own subnet)
+                        +-- GS308 switch -> Mini PC (Proxmox)
+                                           (storage unit added later)
+```
+
+The switch is unmanaged, so it can't do VLANs. Putting the lab behind the second router gives real isolation, so a compromised honeypot can't reach personal devices.
+
+### Planned services
+
+| Goal | Plan |
+|---|---|
+| VPN | Tailscale (subnet router / exit node) |
+| Ad-blocker | Pi-hole or AdGuard Home in an LXC container |
+| Websites | LXC or Docker, exposed through a Cloudflare Tunnel (no open ports) |
+| Cloud server | Nextcloud, with data on the future storage unit |
+| Honeypot | Cowrie (or T-Pot) in an isolated VM |
+
+Planned build order: Proxmox, Tailscale, Pi-hole, websites, Nextcloud, honeypot last.
+
+---
+
+## Progress
+
+### Step 1: Choose the OS
+
+- Chose **Proxmox VE** as the host OS.
+- Note: Tailscale is not an OS alternative. It is a VPN layer that runs on top of Proxmox.
+- The EliteDesk is x86-64 (AMD64), so the standard Proxmox ISO is the right one. There is no official ARM64 build.
+
+### Step 2: Create the install media
+
+- Downloaded the Proxmox VE ISO from proxmox.com.
+- Flashed it to a USB drive with **Rufus** (DD image mode).
+- Booted the mini PC from the USB with the boot menu (F9).
+
+### Step 3: Install Proxmox
+
+- **Issue:** the installer rejected my hostname as "not a valid domain name."
+- **Cause:** it needs a fully qualified domain name (FQDN), not a single word.
+- **Fix:** used a hostname with a domain, e.g. `pve.home.arpa`. (`home.arpa` is the domain reserved for home networks. I avoided `.local` because it can conflict with mDNS.)
+- Set a root password during install.
+
+### Step 4: Log in and reach the web UI
+
+- Username is `root` (not `admin`), realm **Linux PAM standard authentication**.
+- Proxmox has no desktop GUI on the mini PC. The console is text only, and the GUI is a web interface at `https://<proxmox-ip>:8006`, opened from another computer.
+- The browser shows a self-signed certificate warning. It is harmless on a private network.
+
+### Step 5: Fix the network (web UI unreachable)
+
+- **Symptom:** pinging the Proxmox IP from my PC timed out, and `ping 8.8.8.8` failed from the Proxmox console.
+- **Checks:** link lights were green on the switch and mini PC, and both devices were on a /24 subnet.
+- **Cause:** the default gateway on Proxmox was set wrong.
+- **Fix:** edited `/etc/network/interfaces`, set the `gateway` line under `vmbr0` to the router's IP, and applied the change.
+
+```bash
+nano /etc/network/interfaces   # fix the gateway line under vmbr0
+ifreload -a                    # or: reboot
+ip r                           # confirm "default via <router-ip>"
+ping -c 3 <router-ip>
+ping -c 3 8.8.8.8
+```
+
+- Result: the web UI loaded.
+
+### Step 6: Certificate (optional)
+
+- Downloaded the **PEM (cert)** file. The chain version adds nothing for a self-signed cert with no intermediates.
+- Importing it into the trusted store removes the browser warning, but it is optional. Firefox keeps its own certificate store (Settings > Privacy & Security > View Certificates > Authorities).
+- Decided to skip it and move on, since the warning is harmless here.
+
+### Step 7: Switch to the free update repositories
+
+- Disabled the `pve-enterprise` repo (needs a paid subscription and causes 401 errors).
+- Added the **No-Subscription** repo (node > Updates > Repositories).
+- Ran Refresh: the "not recommended" popup is expected for homelab use, and the system reported up to date.
+
+### Step 8: Install Tailscale
+
+This took several attempts.
+
+1. **DNS failure:** `curl ... | sh` failed with `can't resolve host: tailscale.com`.
+   - Fix: set DNS servers in node > **System > DNS** (`1.1.1.1` and `8.8.8.8`) and confirmed with `cat /etc/resolv.conf`.
+2. **Install script did not finish:** `tailscale: command not found` after running the install script, even after installing prerequisites (`curl`, `gnupg`, `apt-transport-https`).
+3. **Manual repo install returned 404:** the repo URL was built with the OS codename variable, which produced a bad URL.
+   - Fix: removed the broken files, then added the repo with the codename typed out (`bookworm`):
+
+```bash
+rm -f /etc/apt/sources.list.d/tailscale.list
+rm -f /usr/share/keyrings/tailscale-archive-keyring.gpg
+
+curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
+curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list
+
+apt update
+apt install -y tailscale
+tailscale version
+systemctl enable --now tailscaled
+tailscale up
+```
+
+4. Authenticated through the login URL. The `pve` machine now shows up in my tailnet.
+
+---
+
+## Current state
+
+- Proxmox VE installed and updated, on the no-subscription repo
+- Web UI reachable on the LAN
+- Tailscale installed on the Proxmox host and joined to my tailnet
+
+## Lessons learned
+
+- Proxmox's installer requires an FQDN for the hostname.
+- The web UI is the GUI. Don't install a desktop environment on the host.
+- A ping timeout with green link lights points to IP, subnet, or gateway settings, not hardware.
+- `Can't resolve host` is a DNS problem. Check `System > DNS` and `/etc/resolv.conf`.
+- Piping an install script into `sh` can hide errors. Download the script first, or use the manual repo method.
+- When a URL is built from a shell variable and returns 404, check the variable's value.
+
+## Next steps
+
+- [ ] Optional: advertise the lab subnet through Tailscale (enable IP forwarding, then approve the route in the admin console)
+- [ ] Place the lab behind the second router on its own subnet
+- [ ] Set a static IP outside the DHCP range, or reserve one in the router
+- [ ] Set up SSH keys and disable password login
+- [ ] Pi-hole / AdGuard Home container
+- [ ] Websites behind a Cloudflare Tunnel
+- [ ] Nextcloud, once the storage unit is installed
+- [ ] Honeypot in an isolated VM (Cowrie first)
+- [ ] Set up Proxmox backups and take snapshots before big changes
